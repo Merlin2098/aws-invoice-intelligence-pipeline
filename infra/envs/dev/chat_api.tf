@@ -125,7 +125,7 @@ module "chat_bedrock_permissions" {
   name                 = "${local.name_prefix}-chat-bedrock"
   aws_region           = var.aws_region
   account_id           = data.aws_caller_identity.current.account_id
-  model_id             = var.bedrock_model_id
+  model_id             = var.chat_bedrock_model_id
   attach_to_role_names = [module.chat_lambda_role.role_name]
   tags                 = local.common_tags
 }
@@ -149,7 +149,7 @@ module "chat_lambda" {
   log_group_name   = module.chat_lambda_log_group.name
   environment_variables = {
     DATA_LAKE_BUCKET = module.data_lake_bucket.bucket_name
-    BEDROCK_MODEL_ID = var.bedrock_model_id
+    BEDROCK_MODEL_ID = var.chat_bedrock_model_id
     GLUE_DATABASE    = local.analytics_database_name
     ATHENA_WORKGROUP = local.athena_workgroup_name
   }

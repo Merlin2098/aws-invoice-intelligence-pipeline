@@ -1,0 +1,149 @@
+[
+  {
+    "id": "clear_invoice_usd",
+    "description": "Clean invoice, unambiguous vendor/date/amount/currency",
+    "payload": {
+      "document_type_hint": null,
+      "textract_summary_fields": {
+        "VENDOR_NAME": "Acme Supplies Inc.",
+        "INVOICE_RECEIPT_DATE": "2025-03-14",
+        "TOTAL": "1,245.50",
+        "CURRENCY": "USD"
+      },
+      "raw_text_snippet": "INVOICE\nAcme Supplies Inc.\nDate: 2025-03-14\nTOTAL DUE: $1,245.50 USD"
+    },
+    "ground_truth": {
+      "document_type": "invoice",
+      "vendor_name": "Acme Supplies Inc.",
+      "document_date": "2025-03-14",
+      "total_amount": 1245.50,
+      "currency": "USD"
+    }
+  },
+  {
+    "id": "receipt_pen_no_currency_symbol",
+    "description": "Receipt in Peru, currency inferred only from 'S/' symbol and address context",
+    "payload": {
+      "document_type_hint": null,
+      "textract_summary_fields": {
+        "VENDOR_NAME": "Ferreteria El Constructor SAC",
+        "RECEIPT_DATE": "12/08/2025",
+        "TOTAL": "S/ 89.90"
+      },
+      "raw_text_snippet": "BOLETA DE VENTA\nFerreteria El Constructor SAC\nRUC 20456781234\nLima, Peru\nFecha: 12/08/2025\nTOTAL: S/ 89.90"
+    },
+    "ground_truth": {
+      "document_type": "receipt",
+      "vendor_name": "Ferreteria El Constructor SAC",
+      "document_date": "2025-08-12",
+      "total_amount": 89.90,
+      "currency": "PEN"
+    }
+  },
+  {
+    "id": "multi_vendor_ambiguous",
+    "description": "Two company names present (billed-to vs vendor) - must pick the actual vendor, not the customer",
+    "payload": {
+      "textract_summary_fields": {
+        "VENDOR_NAME": null,
+        "RECEIVER_NAME": "Wuilio Corp",
+        "TOTAL": "530.00"
+      },
+      "raw_text_snippet": "From: Global Print Solutions LLC\nBill To: Wuilio Corp\nInvoice #4471\nDate: 2025-01-05\nAmount Due: $530.00"
+    },
+    "ground_truth": {
+      "document_type": "invoice",
+      "vendor_name": "Global Print Solutions LLC",
+      "document_date": "2025-01-05",
+      "total_amount": 530.00,
+      "currency": "USD"
+    }
+  },
+  {
+    "id": "credit_note_negative_context",
+    "description": "Credit note / nota de credito, should not be classified as invoice",
+    "payload": {
+      "textract_summary_fields": {
+        "VENDOR_NAME": "Distribuidora Andina EIRL",
+        "TOTAL": "150.00"
+      },
+      "raw_text_snippet": "NOTA DE CREDITO N 0012\nDistribuidora Andina EIRL\nFecha de emision: 2025-05-20\nMonto: S/ 150.00\nMotivo: Devolucion de mercaderia"
+    },
+    "ground_truth": {
+      "document_type": "credit_note",
+      "vendor_name": "Distribuidora Andina EIRL",
+      "document_date": "2025-05-20",
+      "total_amount": 150.00,
+      "currency": "PEN"
+    }
+  },
+  {
+    "id": "illegible_amount_should_be_null",
+    "description": "Amount unreadable/smudged - must return null, not 0.0 or a guess",
+    "payload": {
+      "textract_summary_fields": {
+        "VENDOR_NAME": "Servicios Tecnicos del Norte SA",
+        "TOTAL": null
+      },
+      "raw_text_snippet": "FACTURA\nServicios Tecnicos del Norte SA\nFecha: 2025-02-01\nTOTAL: [ILEGIBLE - mancha de tinta]"
+    },
+    "ground_truth": {
+      "document_type": "invoice",
+      "vendor_name": "Servicios Tecnicos del Norte SA",
+      "document_date": "2025-02-01",
+      "total_amount": null,
+      "currency": null
+    }
+  },
+  {
+    "id": "contribution_document",
+    "description": "Political/organizational contribution document, distinct type from invoice/receipt",
+    "payload": {
+      "textract_summary_fields": {
+        "VENDOR_NAME": null,
+        "TOTAL": "25.00"
+      },
+      "raw_text_snippet": "CONTRIBUTION FORM\nDonor: Maria Lopez\nAmount: $25.00\nDate: 2025-06-30\nCampaign: Local Council Fund"
+    },
+    "ground_truth": {
+      "document_type": "contribution",
+      "vendor_name": null,
+      "document_date": "2025-06-30",
+      "total_amount": 25.00,
+      "currency": "USD"
+    }
+  },
+  {
+    "id": "eur_invoice_dd_mm_yyyy",
+    "description": "European date format and EUR currency, tests date normalization to YYYY-MM-DD",
+    "payload": {
+      "textract_summary_fields": {
+        "VENDOR_NAME": "Muller Logistik GmbH",
+        "TOTAL": "2.340,00"
+      },
+      "raw_text_snippet": "RECHNUNG\nMuller Logistik GmbH\nDatum: 03.11.2025\nGesamtbetrag: EUR 2.340,00"
+    },
+    "ground_truth": {
+      "document_type": "invoice",
+      "vendor_name": "Muller Logistik GmbH",
+      "document_date": "2025-11-03",
+      "total_amount": 2340.00,
+      "currency": "EUR"
+    }
+  },
+  {
+    "id": "unclassifiable_should_be_unknown",
+    "description": "Not a financial document at all - must return 'unknown', not a forced guess",
+    "payload": {
+      "textract_summary_fields": {},
+      "raw_text_snippet": "MEMO\nTo all staff: the office will be closed on Friday for maintenance."
+    },
+    "ground_truth": {
+      "document_type": "unknown",
+      "vendor_name": null,
+      "document_date": null,
+      "total_amount": null,
+      "currency": null
+    }
+  }
+]

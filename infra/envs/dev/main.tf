@@ -375,6 +375,20 @@ data "aws_iam_policy_document" "consolidate_gold_data_lake_access" {
     actions   = ["s3:PutObject"]
     resources = ["${module.data_lake_bucket.bucket_arn}/status/*"]
   }
+
+  statement {
+    sid = "RegisterGoldPartitions"
+    actions = [
+      "glue:GetTable",
+      "glue:CreatePartition",
+      "glue:BatchCreatePartition",
+    ]
+    resources = [
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${local.analytics_database_name}",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.analytics_database_name}/${local.analytics_gold_documents_name}",
+    ]
+  }
 }
 
 data "aws_iam_policy_document" "step_function_lambda_invoke" {
@@ -572,7 +586,7 @@ module "process_document_lambda" {
     SILVER_VALID_PREFIX    = local.silver_valid_prefix
     SILVER_REJECTED_PREFIX = local.silver_rejected_prefix
     ERRORS_PREFIX          = local.errors_prefix
-    BEDROCK_MODEL_ID       = var.bedrock_model_id
+    BEDROCK_MODEL_ID       = var.parser_bedrock_model_id
     TRACEABILITY_MODE      = "run_id_ready"
   }
   tags = local.common_tags
@@ -622,7 +636,7 @@ module "enrich_llm_lambda" {
     SILVER_VALID_PREFIX    = local.silver_valid_prefix
     SILVER_REJECTED_PREFIX = local.silver_rejected_prefix
     ERRORS_PREFIX          = local.errors_prefix
-    BEDROCK_MODEL_ID       = var.bedrock_model_id
+    BEDROCK_MODEL_ID       = var.parser_bedrock_model_id
     TRACEABILITY_MODE      = "execution_id_ready"
   }
   tags = local.common_tags
@@ -661,13 +675,15 @@ module "consolidate_gold_lambda" {
   memory_size      = var.lambda_memory_size
   log_group_name   = module.consolidate_gold_log_group.name
   environment_variables = {
-    DATA_LAKE_BUCKET       = module.data_lake_bucket.bucket_name
-    SILVER_VALID_PREFIX    = local.silver_valid_prefix
-    SILVER_REJECTED_PREFIX = local.silver_rejected_prefix
-    ERRORS_PREFIX          = local.errors_prefix
-    GOLD_PREFIX            = local.gold_prefix
-    GOLD_MANIFEST_PREFIX   = local.gold_manifest_prefix
-    TRACEABILITY_MODE      = "batch_id_ready"
+    DATA_LAKE_BUCKET          = module.data_lake_bucket.bucket_name
+    SILVER_VALID_PREFIX       = local.silver_valid_prefix
+    SILVER_REJECTED_PREFIX    = local.silver_rejected_prefix
+    ERRORS_PREFIX             = local.errors_prefix
+    GOLD_PREFIX               = local.gold_prefix
+    GOLD_MANIFEST_PREFIX      = local.gold_manifest_prefix
+    TRACEABILITY_MODE         = "batch_id_ready"
+    GLUE_DATABASE             = local.analytics_database_name
+    GLUE_GOLD_DOCUMENTS_TABLE = local.analytics_gold_documents_name
   }
   tags = local.common_tags
 }
@@ -718,7 +734,7 @@ module "bedrock_permissions" {
   name       = "${local.name_prefix}-bedrock"
   aws_region = var.aws_region
   account_id = data.aws_caller_identity.current.account_id
-  model_id   = var.bedrock_model_id
+  model_id   = var.parser_bedrock_model_id
   attach_to_role_names = [
     module.process_document_role.role_name,
     module.enrich_llm_role.role_name,

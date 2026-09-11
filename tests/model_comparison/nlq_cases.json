@@ -1,0 +1,50 @@
+[
+  {
+    "id": "total_spend",
+    "question": "How much did we spend in total?",
+    "expects_table": "gold_invoice_summary",
+    "expects_aggregate": true
+  },
+  {
+    "id": "top_suppliers",
+    "question": "Who are the top 5 suppliers by total amount?",
+    "expects_table": "gold_invoice_summary",
+    "expects_aggregate": true
+  },
+  {
+    "id": "invoices_last_month",
+    "question": "How many invoices were processed last month?",
+    "expects_table": "gold_invoice_summary",
+    "expects_aggregate": true
+  },
+  {
+    "id": "failed_status_detail",
+    "question": "Show me invoices with status Failed.",
+    "expects_table": "gold_documents",
+    "expects_aggregate": false
+  },
+  {
+    "id": "avg_amount_by_currency",
+    "question": "What is the average invoice amount grouped by currency?",
+    "expects_table": "gold_invoice_summary",
+    "expects_aggregate": true
+  },
+  {
+    "id": "duplicates_count",
+    "question": "How many documents were flagged as duplicates?",
+    "expects_table": "gold_documents",
+    "expects_aggregate": true
+  },
+  {
+    "id": "supplier_name_filter",
+    "question": "List the 10 most recent invoices from supplier 'Acme Supplies Inc.'",
+    "expects_table": "gold_invoice_summary",
+    "expects_aggregate": false
+  },
+  {
+    "id": "quality_rejected_reasons",
+    "question": "What are the most common rejection reasons for rejected documents?",
+    "expects_table": "gold_documents",
+    "expects_aggregate": true
+  }
+]

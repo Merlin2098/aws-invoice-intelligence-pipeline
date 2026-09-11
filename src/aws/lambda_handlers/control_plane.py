@@ -1158,6 +1158,52 @@ def _dataframe_to_parquet_bytes(documents: Any) -> bytes:
     return buffer.getvalue()
 
 
+def _register_gold_partition(
+    *,
+    data_lake_bucket: str,
+    gold_prefix: str,
+    batch_id: str,
+    logger: Any,
+) -> bool:
+    """Register the batch_id partition just written so Athena/the chat API can see it
+    immediately, without a manual MSCK REPAIR TABLE. Best-effort: a failure here must not
+    fail gold consolidation, since the parquet/manifest are already durably written."""
+    boto3 = _optional_boto3()
+    if boto3 is None:
+        return False
+
+    database_name = os.getenv("GLUE_DATABASE", "")
+    table_name = os.getenv("GLUE_GOLD_DOCUMENTS_TABLE", "")
+    if not database_name or not table_name:
+        return False
+
+    glue = boto3.client("glue")
+    try:
+        table = glue.get_table(DatabaseName=database_name, Name=table_name)["Table"]
+        storage_descriptor = dict(table["StorageDescriptor"])
+        storage_descriptor["Location"] = f"s3://{data_lake_bucket}/{gold_prefix}/batch_id={batch_id}/"
+        glue.create_partition(
+            DatabaseName=database_name,
+            TableName=table_name,
+            PartitionInput={
+                "Values": [batch_id],
+                "StorageDescriptor": storage_descriptor,
+            },
+        )
+        return True
+    except glue.exceptions.AlreadyExistsException:
+        return True
+    except Exception as exc:  # noqa: BLE001 - best-effort registration, never block consolidation
+        logger.warning(
+            {
+                "message": "Gold partition registration failed; run MSCK REPAIR TABLE manually",
+                "batch_id": batch_id,
+                "error": str(exc),
+            }
+        )
+        return False
+
+
 def consolidate_gold(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
     from src.pipeline.gold_model import build_documents_table
 
@@ -1299,11 +1345,21 @@ def consolidate_gold(event: dict[str, Any], _context: Any = None) -> dict[str, A
         content_type="application/vnd.apache.parquet",
     )
     object_store.write_json(manifest_key, manifest)
+
+    partition_registered = _register_gold_partition(
+        data_lake_bucket=data_lake_bucket,
+        gold_prefix=gold_prefix,
+        batch_id=batch_id,
+        logger=logger,
+    )
+    manifest["partition_registered"] = partition_registered
+
     logger.info(
         {
             "message": "Gold batch consolidation completed",
             "status": "completed",
             "gold_row_count": manifest["gold_row_count"],
+            "partition_registered": partition_registered,
         }
     )
 

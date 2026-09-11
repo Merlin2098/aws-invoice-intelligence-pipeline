@@ -14,6 +14,7 @@ CloudFront after `apply`.
 
 - AWS credentials configured for account `184670914470`, region
   `us-east-1`.
+- Git Bash as the terminal (all commands in this guide use Bash syntax).
 - Terraform, `uv`, Node/npm, and `make` available. On Windows without
   `make.exe` in `PATH`, see
   [docs/windows_setup/make_cheatlist.md](windows_setup/make_cheatlist.md).
@@ -42,49 +43,34 @@ source_code_hash = filebase64sha256("${path.root}/../../../artifacts/lambda/cont
 
 Terraform reads this **local file** at plan time, so the zip must exist on
 disk before any plan/apply. Separately, `s3_bucket`/`s3_key` point at the
-artifact bucket (`invoice-pipeline-dev-184670914470-artifacts` — deterministic
-from `${name_prefix}-${account_id}-${artifact_bucket_suffix}`), which doesn't
+artifact bucket (name from the `artifact_bucket_name` Terraform output, i.e.
+`${name_prefix}-${account_id}-${artifact_bucket_suffix}`), which doesn't
 exist until Terraform creates it. On a from-scratch environment this is a
 two-pass bootstrap:
 
 ```bash
-# a) Init
 make tf-init
+make bootstrap-lambdas   # requires approval (applies twice)
+```
 
-# b) Build Lambda zips locally (required for source_code_hash to resolve)
+`bootstrap-lambdas` builds both Lambda zips, applies once (Lambda resources
+are **expected to fail** here — the S3 keys don't exist in the artifact
+bucket yet; buckets, IAM, Step Functions, API Gateway, and CloudFront should
+still apply successfully), uploads the zips to the now-existing artifact
+bucket, then applies again so Lambda and everything depending on it
+(Step Functions, API Gateway integrations, CloudFront) creates successfully.
+
+If the artifact bucket **already exists** (e.g. re-running this guide
+against an existing `dev` environment), skip straight to a single-pass
+update:
+
+```bash
 make package
 make package-chat
-
-# c) First apply — creates the artifact bucket and most other infra.
-#    aws_lambda_function resources WILL FAIL here because the S3 keys
-#    don't exist in the bucket yet. This is expected for Lambda
-#    resources only — buckets, IAM, Step Functions, API Gateway, and
-#    CloudFront should apply successfully.
-make tf-plan      # review the plan
-make tf-apply     # requires approval
-
-# d) Upload the zips now that the artifact bucket exists
-aws s3 cp artifacts/lambda/control_plane_bundle.zip \
-  s3://invoice-pipeline-dev-184670914470-artifacts/artifacts/lambda/control_plane_bundle.zip
-aws s3 cp artifacts/lambda/chat_bundle.zip \
-  s3://invoice-pipeline-dev-184670914470-artifacts/artifacts/lambda/chat_bundle.zip
-
-# e) Second apply — Lambda functions (and everything depending on them:
-#    Step Functions, API Gateway integrations, CloudFront) now create
-#    successfully against the present S3 objects.
+make upload-lambdas
 make tf-plan
 make tf-apply     # requires approval
 ```
-
-Confirm the artifact bucket name with:
-
-```bash
-terraform -chdir=infra/envs/dev output -raw artifact_bucket_name
-```
-
-If the artifact bucket **already exists** (e.g. re-running this guide
-against an existing `dev` environment), steps (c)+(d) collapse: just run
-(b), upload the zips, then a single `make tf-plan` / `make tf-apply`.
 
 ## 4. Frontend configuration and deploy
 
@@ -92,65 +78,50 @@ This is the step that caused both portal bugs fixed in this session — a
 stale `frontend/.env.local` pointed at an old API Gateway ID, and the
 upload `Content-Type` for `.tif`/`.tiff` files didn't match what was signed.
 
-1. Get the live API base URL:
+1. Sync `frontend/.env.local` to the live API Gateway URL:
 
    ```bash
-   terraform -chdir=infra/envs/dev output -raw web_api_base_url
-   ```
-
-2. Create or update `frontend/.env.local`:
-
-   ```
-   VITE_API_BASE_URL=<value from step 1, including trailing slash>
+   make sync-frontend-env
    ```
 
    **This file is gitignored and must be regenerated any time the API
    Gateway is recreated (new ID).** A stale value here is the most likely
-   cause of "upload and chat fail only from the web portal" symptoms.
-
-3. Install dependencies (first time, or after `package.json` changes):
+   cause of "upload and chat fail only from the web portal" symptoms. Rerun
+   this any time `web_api_base_url` changes.
+2. Install dependencies (first time, or after `package.json` changes):
 
    ```bash
    make frontend-install
    ```
-
-4. Build:
+3. Build and deploy — `deploy-frontend` auto-discovers the site bucket and
+   CloudFront distribution ID from Terraform outputs, so no need to look
+   them up manually (pass `SITE_BUCKET=`/`CF_DIST_ID=` explicitly only if
+   you need to target something other than the current `dev` state):
 
    ```bash
    make build-frontend
-   ```
-
-5. Get the site bucket and CloudFront distribution ID:
-
-   ```bash
-   terraform -chdir=infra/envs/dev output -raw site_bucket_name
-   terraform -chdir=infra/envs/dev output -raw cloudfront_distribution_id
-   ```
-
-6. Deploy:
-
-   ```bash
-   make deploy-frontend SITE_BUCKET=<bucket> CF_DIST_ID=<dist_id>
+   make deploy-frontend
    ```
 
 ## 5. Verification
 
-Read-only Python scripts under `tests/terraform/` (see each script's
-docstring for options):
+```bash
+make verify-dev
+```
 
-- `python tests/terraform/step6_check_portal_access.py` — confirms site
-  bucket contents and CloudFront returns 200 for the portal and key assets.
-  Note: this script has some asset filenames/bucket/distribution IDs
-  hardcoded and may need updating after a fresh deploy with new asset
-  hashes.
-- `python tests/terraform/step7_test_raw_uploads.py` — end-to-end upload of
-  a `data/raw` file via presigned URLs, polling invoice status to
-  `Completed`.
-- `python tests/terraform/step8_browser_upload_repro.py` — reproduces the
-  browser's upload flow (same `Content-Type` logic, `Origin` header) with
-  full HTTP error capture.
-- `python tests/terraform/step9_test_chat_nlq.py` — sends natural-language
-  questions to `POST /chat` and logs the generated SQL, rows, and answer.
+Runs the read-only `tests/terraform/step6`–`step9` scripts in sequence
+against dev (see each script's docstring for options — questions, files,
+timeouts — if you need to run one individually):
+
+- `step6_check_portal_access.py` — confirms site bucket contents and
+  CloudFront returns 200 for the portal and key assets. Note: this script
+  has some asset filenames/bucket/distribution IDs hardcoded and may need
+  updating after a fresh deploy with new asset hashes.
+- `step7_test_raw_uploads.py` — end-to-end upload of a `data/raw` file via
+  presigned URLs, polling invoice status to `Completed`.
+- `step8_browser_upload_repro.py` — reproduces the browser's upload flow
+  (same `Content-Type` logic, `Origin` header) with full HTTP error capture.
+- `step9_test_chat_nlq.py` — sends natural-language questions to `POST /chat` and logs the generated SQL, rows, and answer.
 
 After any frontend deploy, do a **hard refresh** (Ctrl+Shift+R) or open the
 portal in an incognito window — CloudFront invalidation can take a minute,
@@ -159,22 +130,21 @@ and browsers cache the old JS bundle aggressively.
 ## 6. Subsequent updates
 
 - **Backend code change** (`src/`): `make package` (and `make package-chat`
-  if `src/analytics` or `src/aws` changed) → upload the changed zip(s) to
-  the artifact bucket (same `aws s3 cp` commands as step 3d) → `make tf-plan`
-  → `make tf-apply` (requires approval). The updated `source_code_hash`
-  (computed from the local zip) is what tells Terraform the Lambda code
-  changed — both the local rebuild and the S3 upload are required.
-- **Frontend-only change**: `make build-frontend` → `make deploy-frontend
-  SITE_BUCKET=... CF_DIST_ID=...`. No Terraform needed unless
-  `VITE_API_BASE_URL` changed.
+  if `src/analytics` or `src/aws` changed) → `make upload-lambdas` →
+  `make tf-plan` → `make tf-apply` (requires approval). The updated
+  `source_code_hash` (computed from the local zip) is what tells Terraform
+  the Lambda code changed — both the local rebuild and the S3 upload are
+  required.
+- **Frontend-only change**: `make build-frontend` → `make deploy-frontend`.
+  No Terraform needed unless `VITE_API_BASE_URL` changed.
 - **Infra change**: standard `make tf-plan` → `make tf-apply` (requires
   approval). If the API Gateway was replaced (new `web_api_base_url`),
-  redo step 4 (update `.env.local`, rebuild, redeploy the frontend).
+  redo step 4 (`make sync-frontend-env`, rebuild, redeploy the frontend).
 
 ## 7. Teardown
 
 See [docs/destruction_guide.md](destruction_guide.md) for the full safe
 teardown checklist (what gets deleted, backup steps, dry run via
-`tests/terraform/step3_destroy.ps1`, and post-destroy verification).
+`tests/terraform/step3_destroy.sh`, and post-destroy verification).
 `terraform destroy` requires the same explicit approval as `apply`, per
 [AGENTS.md](../AGENTS.md).

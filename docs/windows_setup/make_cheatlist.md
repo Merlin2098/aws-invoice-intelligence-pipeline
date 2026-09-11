@@ -1,10 +1,9 @@
 # Make Cheatlist
 
-Use the command style that matches your shell and how `make.exe` is installed.
+Git Bash is the primary terminal for this project on Windows. Use the
+command style that matches how `make.exe` is installed.
 
-## `make` available in `PATH`
-
-Use this in PowerShell or Git Bash:
+## `make` available in `PATH` (recommended)
 
 ```bash
 make treemap
@@ -13,33 +12,36 @@ make package
 make ai-refresh
 ```
 
-## PowerShell without `make.exe` in `PATH`
+## Git Bash without `make.exe` in `PATH`
 
-Use the repository wrapper:
+Call the repository's PowerShell wrapper explicitly from Git Bash:
+
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 treemap
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 lint
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 package
+```
+
+## Git Bash with an explicit corporate `make.exe`
+
+Pass the fixed binary path through to the wrapper:
+
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 \
+  -MakePath 'C:\Users\user\tools\make\bin\make.exe' treemap
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 \
+  -MakePath 'C:\Users\user\tools\make\bin\make.exe' lint
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 \
+  -MakePath 'C:\Users\user\tools\make\bin\make.exe' package
+```
+
+## If you're still using a PowerShell terminal
+
+The wrapper also runs directly from PowerShell:
 
 ```powershell
 .\scripts\windows\run_make.ps1 treemap
 .\scripts\windows\run_make.ps1 lint
 .\scripts\windows\run_make.ps1 package
 .\scripts\windows\run_make.ps1 ai-refresh
-```
-
-## PowerShell with an explicit corporate `make.exe`
-
-Use the wrapper with the fixed binary path:
-
-```powershell
-.\scripts\windows\run_make.ps1 -MakePath 'C:\Users\user\tools\make\bin\make.exe' treemap
-.\scripts\windows\run_make.ps1 -MakePath 'C:\Users\user\tools\make\bin\make.exe' lint
-.\scripts\windows\run_make.ps1 -MakePath 'C:\Users\user\tools\make\bin\make.exe' package
-```
-
-## Git Bash without `make.exe` in `PATH`
-
-Call the PowerShell wrapper explicitly:
-
-```bash
-powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 treemap
-powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 lint
-powershell.exe -ExecutionPolicy Bypass -File ./scripts/windows/run_make.ps1 package
 ```

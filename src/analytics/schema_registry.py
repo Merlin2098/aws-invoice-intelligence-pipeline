@@ -68,10 +68,20 @@ TABLES = {
 }
 
 
-def table_schema_prompt(table_name: str = GOLD_INVOICE_SUMMARY.name) -> str:
-    table = TABLES[table_name]
-    lines = [f"Table: {table.name}", "Columns:"]
-    for column_name, column_type in table.all_columns.items():
-        lines.append(f"- {column_name}: {column_type}")
-    return "\n".join(lines)
+def table_schema_prompt(table_name: str | None = None) -> str:
+    """Render column info for one table, or all tables when table_name is None.
+
+    SQL generation needs every table's real columns in context -- the prompt
+    tells the model to pick between gold_invoice_summary and gold_documents,
+    and a model that can't see a table's actual columns will guess at names
+    that don't exist.
+    """
+    tables = [TABLES[table_name]] if table_name else list(TABLES.values())
+    blocks = []
+    for table in tables:
+        lines = [f"Table: {table.name}", "Columns:"]
+        for column_name, column_type in table.all_columns.items():
+            lines.append(f"- {column_name}: {column_type}")
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
 

@@ -181,10 +181,16 @@ variable "raw_trigger_suffix" {
   nullable    = true
 }
 
-variable "bedrock_model_id" {
-  description = "Bedrock model ID used for structured normalization when Textract extraction is incomplete."
+variable "parser_bedrock_model_id" {
+  description = "Bedrock model ID used by the parser Lambdas (process_document, enrich_llm) for structured normalization when Textract extraction is incomplete."
   type        = string
-  default     = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+}
+
+variable "chat_bedrock_model_id" {
+  description = "Bedrock model ID used by the chat Lambda for natural-language-to-SQL generation."
+  type        = string
+  default     = "amazon.nova-micro-v1:0"
 }
 
 variable "cloudwatch_namespace" {

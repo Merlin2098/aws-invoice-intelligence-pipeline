@@ -8,7 +8,8 @@ lambda_package_s3_key                = "artifacts/lambda/control_plane_bundle.zi
 lambda_log_retention_in_days         = 30
 step_function_log_retention_in_days  = 30
 cloudwatch_namespace                 = "InvoicePipeline"
-bedrock_model_id                     = "bedrock-model-id"
+parser_bedrock_model_id              = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+chat_bedrock_model_id                = "amazon.nova-micro-v1:0"
 force_destroy                        = false
 
 tags = {

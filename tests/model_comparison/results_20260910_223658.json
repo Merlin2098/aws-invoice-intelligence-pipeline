@@ -1,0 +1,286 @@
+{
+  "nlq": {
+    "claude-sonnet-4.5 (current)": {
+      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "cases": [
+        {
+          "case_id": "total_spend",
+          "question": "How much did we spend in total?",
+          "latency_ms": 2204.8964999994496,
+          "input_tokens": 1297,
+          "output_tokens": 38,
+          "cost_usd": 0.004461,
+          "generated_sql": "SELECT \n    SUM(total_amount) AS total_spend,\n    currency\nFROM gold_invoice_summary\nGROUP BY currency",
+          "validated_sql": "SELECT SUM(total_amount) AS total_spend, currency FROM gold_invoice_summary GROUP BY currency LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "top_suppliers",
+          "question": "Who are the top 5 suppliers by total amount?",
+          "latency_ms": 1996.5481999970507,
+          "input_tokens": 1301,
+          "output_tokens": 54,
+          "cost_usd": 0.004713,
+          "generated_sql": "SELECT \n    supplier_name,\n    SUM(total_amount) AS total_amount\nFROM gold_invoice_summary\nGROUP BY supplier_name\nORDER BY total_amount DESC\nLIMIT 5",
+          "validated_sql": "SELECT supplier_name, SUM(total_amount) AS total_amount FROM gold_invoice_summary GROUP BY supplier_name ORDER BY total_amount DESC LIMIT 5",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "invoices_last_month",
+          "question": "How many invoices were processed last month?",
+          "latency_ms": 2371.5406999981496,
+          "input_tokens": 1298,
+          "output_tokens": 151,
+          "cost_usd": 0.0061589999999999995,
+          "generated_sql": "SELECT COUNT(*) AS invoice_count\nFROM gold_invoice_summary\nWHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) = (\n    SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d'))\n    FROM gold_invoice_summary\n    WHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) < (\n        SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d'))\n        FROM gold_invoice_summary\n    )\n)",
+          "validated_sql": "SELECT COUNT(*) AS invoice_count FROM gold_invoice_summary WHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) = ( SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d')) FROM gold_invoice_summary WHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) < ( SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d')) FROM gold_invoice_summary ) ) LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "failed_status_detail",
+          "question": "Show me invoices with status Failed.",
+          "latency_ms": 2145.000500000606,
+          "input_tokens": 1297,
+          "output_tokens": 83,
+          "cost_usd": 0.005136,
+          "generated_sql": "SELECT \n    document_id,\n    source_file_name,\n    vendor_name,\n    total_amount,\n    currency,\n    processing_status,\n    quality_status,\n    rejection_reason,\n    created_at\nFROM gold_documents\nWHERE processing_status = 'Failed'\nLIMIT 100",
+          "validated_sql": "SELECT document_id, source_file_name, vendor_name, total_amount, currency, processing_status, quality_status, rejection_reason, created_at FROM gold_documents WHERE processing_status = 'Failed' LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "avg_amount_by_currency",
+          "question": "What is the average invoice amount grouped by currency?",
+          "latency_ms": 2000.2668000015547,
+          "input_tokens": 1299,
+          "output_tokens": 55,
+          "cost_usd": 0.004722,
+          "generated_sql": "SELECT \n    currency,\n    AVG(total_amount) AS average_amount,\n    COUNT(*) AS invoice_count\nFROM gold_invoice_summary\nGROUP BY currency\nORDER BY average_amount DESC",
+          "validated_sql": "SELECT currency, AVG(total_amount) AS average_amount, COUNT(*) AS invoice_count FROM gold_invoice_summary GROUP BY currency ORDER BY average_amount DESC LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "duplicates_count",
+          "question": "How many documents were flagged as duplicates?",
+          "latency_ms": 1784.095900002285,
+          "input_tokens": 1299,
+          "output_tokens": 28,
+          "cost_usd": 0.004317,
+          "generated_sql": "SELECT COUNT(*) AS duplicate_count\nFROM gold_documents\nWHERE is_duplicate = true",
+          "validated_sql": "SELECT COUNT(*) AS duplicate_count FROM gold_documents WHERE is_duplicate = true LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "supplier_name_filter",
+          "question": "List the 10 most recent invoices from supplier 'Acme Supplies Inc.'",
+          "latency_ms": 2212.771000005887,
+          "input_tokens": 1309,
+          "output_tokens": 95,
+          "cost_usd": 0.005352,
+          "generated_sql": "SELECT \n    invoice_id,\n    invoice_date,\n    supplier_name,\n    currency,\n    total_amount,\n    document_type,\n    processing_date\nFROM gold_invoice_summary\nWHERE supplier_name = 'Acme Supplies Inc.'\nORDER BY date_parse(invoice_date, '%Y-%m-%d') DESC\nLIMIT 10",
+          "validated_sql": "SELECT invoice_id, invoice_date, supplier_name, currency, total_amount, document_type, processing_date FROM gold_invoice_summary WHERE supplier_name = 'Acme Supplies Inc.' ORDER BY date_parse(invoice_date, '%Y-%m-%d') DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "quality_rejected_reasons",
+          "question": "What are the most common rejection reasons for rejected documents?",
+          "latency_ms": 2571.114400001534,
+          "input_tokens": 1300,
+          "output_tokens": 115,
+          "cost_usd": 0.005625,
+          "generated_sql": "SELECT \n    rejection_reason,\n    COUNT(*) AS rejection_count,\n    ROUND(CAST(COUNT(*) AS DOUBLE) * 100.0 / (SELECT COUNT(*) FROM gold_documents WHERE processing_status = 'Rejected'), 2) AS percentage\nFROM gold_documents\nWHERE processing_status = 'Rejected'\n    AND rejection_reason IS NOT NULL\nGROUP BY rejection_reason\nORDER BY rejection_count DESC\nLIMIT 20",
+          "validated_sql": "SELECT rejection_reason, COUNT(*) AS rejection_count, ROUND(CAST(COUNT(*) AS DOUBLE) * 100.0 / (SELECT COUNT(*) FROM gold_documents WHERE processing_status = 'Rejected'), 2) AS percentage FROM gold_documents WHERE processing_status = 'Rejected' AND rejection_reason IS NOT NULL GROUP BY rejection_reason ORDER BY rejection_count DESC LIMIT 20",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        }
+      ]
+    },
+    "nova-micro": {
+      "model_id": "amazon.nova-micro-v1:0",
+      "cases": [
+        {
+          "case_id": "total_spend",
+          "question": "How much did we spend in total?",
+          "latency_ms": 483.1938999996055,
+          "input_tokens": 1228,
+          "output_tokens": 31,
+          "cost_usd": 4.732e-05,
+          "generated_sql": "SELECT SUM(total_amount) AS total_spend\nFROM gold_invoice_summary\nLIMIT 1000",
+          "validated_sql": "SELECT SUM(total_amount) AS total_spend FROM gold_invoice_summary LIMIT 1000",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "top_suppliers",
+          "question": "Who are the top 5 suppliers by total amount?",
+          "latency_ms": 390.966799997841,
+          "input_tokens": 1231,
+          "output_tokens": 46,
+          "cost_usd": 4.9525e-05,
+          "generated_sql": "SELECT supplier_name, SUM(total_amount) AS total_amount\nFROM gold_invoice_summary\nGROUP BY supplier_name\nORDER BY total_amount DESC\nLIMIT 5",
+          "validated_sql": "SELECT supplier_name, SUM(total_amount) AS total_amount FROM gold_invoice_summary GROUP BY supplier_name ORDER BY total_amount DESC LIMIT 5",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "invoices_last_month",
+          "question": "How many invoices were processed last month?",
+          "latency_ms": 624.2511000018567,
+          "input_tokens": 1228,
+          "output_tokens": 141,
+          "cost_usd": 6.272e-05,
+          "generated_sql": "SELECT COUNT(*) AS invoice_count\nFROM gold_invoice_summary\nWHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) = (\n    SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d'))\n    FROM gold_invoice_summary\n)\nAND date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) < (\n    SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d'))\n    FROM gold_invoice_summary\n)",
+          "validated_sql": "SELECT COUNT(*) AS invoice_count FROM gold_invoice_summary WHERE date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) = ( SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d')) FROM gold_invoice_summary ) AND date_trunc('month', date_parse(processing_date, '%Y-%m-%d')) < ( SELECT date_trunc('month', date_parse(MAX(processing_date), '%Y-%m-%d')) FROM gold_invoice_summary ) LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "failed_status_detail",
+          "question": "Show me invoices with status Failed.",
+          "latency_ms": 597.0059999963269,
+          "input_tokens": 1227,
+          "output_tokens": 86,
+          "cost_usd": 5.4984999999999996e-05,
+          "generated_sql": "SELECT \n    gold_documents.document_id,\n    gold_documents.vendor_name,\n    gold_documents.total_amount,\n    gold_documents.currency,\n    gold_documents.processing_status,\n    gold_documents.quality_status\nFROM \n    gold_documents\nWHERE \n    gold_documents.processing_status = 'Failed'\nLIMIT 100",
+          "validated_sql": "SELECT gold_documents.document_id, gold_documents.vendor_name, gold_documents.total_amount, gold_documents.currency, gold_documents.processing_status, gold_documents.quality_status FROM gold_documents WHERE gold_documents.processing_status = 'Failed' LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "avg_amount_by_currency",
+          "question": "What is the average invoice amount grouped by currency?",
+          "latency_ms": 407.6649000053294,
+          "input_tokens": 1230,
+          "output_tokens": 32,
+          "cost_usd": 4.7529999999999994e-05,
+          "generated_sql": "SELECT currency, AVG(total_amount) AS average_invoice_amount\nFROM gold_invoice_summary\nGROUP BY currency",
+          "validated_sql": "SELECT currency, AVG(total_amount) AS average_invoice_amount FROM gold_invoice_summary GROUP BY currency LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "duplicates_count",
+          "question": "How many documents were flagged as duplicates?",
+          "latency_ms": 522.0360000021174,
+          "input_tokens": 1228,
+          "output_tokens": 35,
+          "cost_usd": 4.7879999999999996e-05,
+          "generated_sql": "SELECT COUNT(*) AS duplicate_document_count\nFROM gold_documents\nWHERE is_duplicate = true\nLIMIT 1000",
+          "validated_sql": "SELECT COUNT(*) AS duplicate_document_count FROM gold_documents WHERE is_duplicate = true LIMIT 1000",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "supplier_name_filter",
+          "question": "List the 10 most recent invoices from supplier 'Acme Supplies Inc.'",
+          "latency_ms": 560.391899998649,
+          "input_tokens": 1236,
+          "output_tokens": 83,
+          "cost_usd": 5.4879999999999996e-05,
+          "generated_sql": "SELECT \n    invoice_id, \n    invoice_date, \n    supplier_name, \n    total_amount, \n    currency\nFROM \n    gold_invoice_summary\nWHERE \n    supplier_name = 'Acme Supplies Inc.'\nORDER BY \n    date_parse(processing_date, '%Y-%m-%d') DESC\nLIMIT 10",
+          "validated_sql": "SELECT invoice_id, invoice_date, supplier_name, total_amount, currency FROM gold_invoice_summary WHERE supplier_name = 'Acme Supplies Inc.' ORDER BY date_parse(processing_date, '%Y-%m-%d') DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "quality_rejected_reasons",
+          "question": "What are the most common rejection reasons for rejected documents?",
+          "latency_ms": 430.3704999983893,
+          "input_tokens": 1231,
+          "output_tokens": 46,
+          "cost_usd": 4.9525e-05,
+          "generated_sql": "SELECT rejection_reason, COUNT(*) AS count\nFROM gold_documents\nWHERE quality_status ='rejected'\nGROUP BY rejection_reason\nORDER BY count DESC\nLIMIT 10",
+          "validated_sql": "SELECT rejection_reason, COUNT(*) AS count FROM gold_documents WHERE quality_status ='rejected' GROUP BY rejection_reason ORDER BY count DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        }
+      ]
+    }
+  }
+}

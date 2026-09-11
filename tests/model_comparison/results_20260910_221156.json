@@ -1,0 +1,1339 @@
+{
+  "parser": {
+    "claude-sonnet-4.5 (current)": {
+      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "cases": [
+        {
+          "case_id": "clear_invoice_usd",
+          "description": "Clean invoice, unambiguous vendor/date/amount/currency",
+          "latency_ms": 4776.895000002696,
+          "input_tokens": 484,
+          "output_tokens": 231,
+          "cost_usd": 0.004917,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.99,
+              "total_amount": 0.98,
+              "currency": 0.99
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled as 'INVOICE' in raw text",
+              "Vendor name matches exactly between Textract and raw text",
+              "Date format is unambiguous (ISO 8601)",
+              "Total amount clearly stated with currency symbol and code",
+              "Currency explicitly stated as 'USD' in both Textract and raw text"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "receipt_pen_no_currency_symbol",
+          "description": "Receipt in Peru, currency inferred only from 'S/' symbol and address context",
+          "latency_ms": 4273.723700003757,
+          "input_tokens": 496,
+          "output_tokens": 251,
+          "cost_usd": 0.005253,
+          "predicted": {
+            "document_type": "receipt",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.95,
+              "total_amount": 0.98,
+              "currency": 0.98
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled as 'BOLETA DE VENTA' (sales receipt in Spanish)",
+              "Vendor name clearly stated with RUC (Peruvian tax ID)",
+              "Date format interpreted as DD/MM/YYYY based on Peruvian context",
+              "Currency symbol 'S/' confirms Peruvian Sol (PEN)",
+              "Total amount unambiguous and matches Textract extraction"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "receipt",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "multi_vendor_ambiguous",
+          "description": "Two company names present (billed-to vs vendor) - must pick the actual vendor, not the customer",
+          "latency_ms": 4383.573200000683,
+          "input_tokens": 461,
+          "output_tokens": 263,
+          "cost_usd": 0.005327999999999999,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled as 'Invoice #4471'",
+              "Vendor identified from 'From:' field as 'Global Print Solutions LLC'",
+              "Textract RECEIVER_NAME matches 'Bill To:' field (Wuilio Corp)",
+              "Date clearly stated as '2025-01-05'",
+              "Total amount matches between Textract (530.00) and raw text ($530.00)",
+              "Currency inferred from '$' symbol in raw text"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "credit_note_negative_context",
+          "description": "Credit note / nota de credito, should not be classified as invoice",
+          "latency_ms": 4511.310800000501,
+          "input_tokens": 474,
+          "output_tokens": 254,
+          "cost_usd": 0.005232,
+          "predicted": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.95,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled as 'NOTA DE CREDITO' (credit note)",
+              "Vendor name matches between Textract and raw text",
+              "Currency symbol 'S/' indicates Peruvian Soles (PEN)",
+              "Date format is standard ISO (YYYY-MM-DD)",
+              "Amount matches between Textract total and raw text",
+              "Credit note reason provided: merchandise return"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "illegible_amount_should_be_null",
+          "description": "Amount unreadable/smudged - must return null, not 0.0 or a guess",
+          "latency_ms": 4641.779300000053,
+          "input_tokens": 454,
+          "output_tokens": 233,
+          "cost_usd": 0.004857,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.95,
+              "total_amount": 0.0,
+              "currency": 0.0
+            },
+            "reasoning_flags": [
+              "Document clearly labeled as 'FACTURA' (invoice in Spanish)",
+              "Vendor name consistent between Textract and document text",
+              "Date format standard and clearly stated",
+              "Total amount explicitly marked as illegible due to ink stain - returning null rather than 0.0",
+              "No currency symbol or text found in snippet - cannot infer"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "contribution_document",
+          "description": "Political/organizational contribution document, distinct type from invoice/receipt",
+          "latency_ms": 3884.575699994457,
+          "input_tokens": 444,
+          "output_tokens": 226,
+          "cost_usd": 0.004722,
+          "predicted": {
+            "document_type": "contribution",
+            "vendor_name": "Maria Lopez",
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled 'CONTRIBUTION FORM'",
+              "Vendor interpreted as donor name 'Maria Lopez' in contribution context",
+              "Date format YYYY-MM-DD extracted from raw text",
+              "Amount $25.00 matches Textract TOTAL field",
+              "Currency USD inferred from dollar sign prefix in raw text"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "contribution",
+            "vendor_name": null,
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": false,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 4,
+          "fields_total": 5
+        },
+        {
+          "case_id": "eur_invoice_dd_mm_yyyy",
+          "description": "European date format and EUR currency, tests date normalization to YYYY-MM-DD",
+          "latency_ms": 4092.639800001052,
+          "input_tokens": 458,
+          "output_tokens": 240,
+          "cost_usd": 0.004974,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.95,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.95
+            },
+            "reasoning_flags": [
+              "Document clearly labeled as 'RECHNUNG' (German for invoice)",
+              "Vendor name consistent between Textract and raw text",
+              "Date format converted from DD.MM.YYYY to ISO 8601",
+              "Currency explicitly stated as EUR in raw text",
+              "German number format (2.340,00) normalized to 2340.00"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "unclassifiable_should_be_unknown",
+          "description": "Not a financial document at all - must return 'unknown', not a forced guess",
+          "latency_ms": 3700.205000001006,
+          "input_tokens": 405,
+          "output_tokens": 183,
+          "cost_usd": 0.00396,
+          "predicted": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.0,
+              "vendor_name": 0.0,
+              "document_date": 0.0,
+              "total_amount": 0.0,
+              "currency": 0.0
+            },
+            "reasoning_flags": [
+              "Document is a memo, not a financial document",
+              "No vendor information present",
+              "No financial transaction or amounts mentioned",
+              "No currency indicators found",
+              "No invoice/receipt characteristics detected"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        }
+      ]
+    },
+    "claude-haiku-4.5": {
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "cases": [
+        {
+          "case_id": "clear_invoice_usd",
+          "description": "Clean invoice, unambiguous vendor/date/amount/currency",
+          "latency_ms": 1794.568999997864,
+          "input_tokens": 484,
+          "output_tokens": 219,
+          "cost_usd": 0.001579,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.98,
+              "total_amount": 0.98,
+              "currency": 0.99
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled 'INVOICE' in raw text",
+              "Textract and raw text agree on vendor name, date, total, and currency",
+              "Currency symbol ($) and code (USD) both present in raw text",
+              "All deterministic fields corroborated across sources"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "receipt_pen_no_currency_symbol",
+          "description": "Receipt in Peru, currency inferred only from 'S/' symbol and address context",
+          "latency_ms": 2092.8320000020904,
+          "input_tokens": 496,
+          "output_tokens": 229,
+          "cost_usd": 0.001641,
+          "predicted": {
+            "document_type": "receipt",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.98,
+              "total_amount": 0.98,
+              "currency": 0.99
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled 'BOLETA DE VENTA' (sales receipt in Peru)",
+              "Currency 'S/' is the Peruvian Sol symbol, standardized to PEN",
+              "All fields consistently extracted from Textract and validated against raw text snippet",
+              "RUC number present confirms formal vendor identity"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "receipt",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "multi_vendor_ambiguous",
+          "description": "Two company names present (billed-to vs vendor) - must pick the actual vendor, not the customer",
+          "latency_ms": 2017.2776999970665,
+          "input_tokens": 461,
+          "output_tokens": 251,
+          "cost_usd": 0.001716,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.85
+            },
+            "reasoning_flags": [
+              "Vendor name extracted from raw text 'From:' field rather than Textract VENDOR_NAME (null)",
+              "Document type inferred as invoice from explicit 'Invoice #4471' label",
+              "Total amount matches both Textract TOTAL and raw text 'Amount Due'",
+              "Currency inferred as USD from '$' symbol in raw text",
+              "Receiver name present but vendor is the sender (Global Print Solutions LLC)"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "credit_note_negative_context",
+          "description": "Credit note / nota de credito, should not be classified as invoice",
+          "latency_ms": 1921.1476000054972,
+          "input_tokens": 474,
+          "output_tokens": 250,
+          "cost_usd": 0.001724,
+          "predicted": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.99,
+              "document_date": 0.99,
+              "total_amount": 0.99,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled 'NOTA DE CREDITO' (Credit Note)",
+              "Vendor name confirmed in both Textract and raw text",
+              "Date unambiguous in ISO format from raw text",
+              "Amount matches Textract total and includes 'S/' symbol indicating Peruvian Sol",
+              "Purpose stated as 'Devolucion de mercaderia' (merchandise return)"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "illegible_amount_should_be_null",
+          "description": "Amount unreadable/smudged - must return null, not 0.0 or a guess",
+          "latency_ms": 2148.2239000033587,
+          "input_tokens": 454,
+          "output_tokens": 251,
+          "cost_usd": 0.001709,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.95,
+              "total_amount": 0.0,
+              "currency": 0.0
+            },
+            "reasoning_flags": [
+              "Document type confirmed by 'FACTURA' label in raw text",
+              "Vendor name extracted consistently from both Textract and raw text",
+              "Date clearly stated in raw text as 2025-02-01",
+              "Total amount field explicitly marked as unreadable ('ILEGIBLE - mancha de tinta'); null returned per rule 6",
+              "No currency indicator found in provided text; null returned per rule 3"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "contribution_document",
+          "description": "Political/organizational contribution document, distinct type from invoice/receipt",
+          "latency_ms": 1966.5734000009252,
+          "input_tokens": 444,
+          "output_tokens": 243,
+          "cost_usd": 0.0016589999999999999,
+          "predicted": {
+            "document_type": "contribution",
+            "vendor_name": null,
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.0,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.85
+            },
+            "reasoning_flags": [
+              "Document explicitly labeled 'CONTRIBUTION FORM' indicating document_type",
+              "No vendor_name present; document is contribution/donation, not commercial transaction",
+              "Date extracted directly from raw text: 2025-06-30",
+              "Total amount matches Textract summary ($25.00) and raw text",
+              "Currency inferred from '$' symbol in raw text; no explicit currency code provided, defaulting to USD"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "contribution",
+            "vendor_name": null,
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "eur_invoice_dd_mm_yyyy",
+          "description": "European date format and EUR currency, tests date normalization to YYYY-MM-DD",
+          "latency_ms": 1929.272300003504,
+          "input_tokens": 458,
+          "output_tokens": 241,
+          "cost_usd": 0.001663,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.99,
+              "document_date": 0.95,
+              "total_amount": 0.99,
+              "currency": 0.99
+            },
+            "reasoning_flags": [
+              "German document header 'RECHNUNG' confirms invoice type",
+              "Total amount parsed from German locale format (2.340,00 = 2340.00)",
+              "Currency EUR explicitly stated in raw text",
+              "Date formatted in German standard (DD.MM.YYYY)",
+              "All key fields corroborated by both Textract and raw text"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "unclassifiable_should_be_unknown",
+          "description": "Not a financial document at all - must return 'unknown', not a forced guess",
+          "latency_ms": 1502.7021999994759,
+          "input_tokens": 405,
+          "output_tokens": 189,
+          "cost_usd": 0.00135,
+          "predicted": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.0,
+              "vendor_name": 0.0,
+              "document_date": 0.0,
+              "total_amount": 0.0,
+              "currency": 0.0
+            },
+            "reasoning_flags": [
+              "Document is a staff memo, not a financial document (invoice, receipt, contribution, or credit note)",
+              "No vendor, date, amount, or currency information present",
+              "Content lacks financial/transactional elements required for normalization"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        }
+      ]
+    },
+    "nova-lite": {
+      "model_id": "amazon.nova-lite-v1:0",
+      "cases": [
+        {
+          "case_id": "clear_invoice_usd",
+          "description": "Clean invoice, unambiguous vendor/date/amount/currency",
+          "latency_ms": 848.1911000053515,
+          "input_tokens": 434,
+          "output_tokens": 153,
+          "cost_usd": 6.276e-05,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.9,
+              "total_amount": 0.95,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Vendor name matches text snippet and Textract summary"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Acme Supplies Inc.",
+            "document_date": "2025-03-14",
+            "total_amount": 1245.5,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "receipt_pen_no_currency_symbol",
+          "description": "Receipt in Peru, currency inferred only from 'S/' symbol and address context",
+          "latency_ms": 676.3214000020525,
+          "input_tokens": 451,
+          "output_tokens": 155,
+          "cost_usd": 6.426000000000001e-05,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.8,
+              "vendor_name": 0.95,
+              "document_date": 0.9,
+              "total_amount": 0.9,
+              "currency": 0.95
+            },
+            "reasoning_flags": [
+              "Document contains 'BOLETA DE VENTA' indicating it is an invoice."
+            ]
+          },
+          "ground_truth": {
+            "document_type": "receipt",
+            "vendor_name": "Ferreteria El Constructor SAC",
+            "document_date": "2025-08-12",
+            "total_amount": 89.9,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": false,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 4,
+          "fields_total": 5
+        },
+        {
+          "case_id": "multi_vendor_ambiguous",
+          "description": "Two company names present (billed-to vs vendor) - must pick the actual vendor, not the customer",
+          "latency_ms": 780.5982999998378,
+          "input_tokens": 413,
+          "output_tokens": 151,
+          "cost_usd": 6.1019999999999995e-05,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.9
+            },
+            "reasoning_flags": [
+              "Vendor name inferred from 'From' field"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Global Print Solutions LLC",
+            "document_date": "2025-01-05",
+            "total_amount": 530.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "credit_note_negative_context",
+          "description": "Credit note / nota de credito, should not be classified as invoice",
+          "latency_ms": 810.9201999977813,
+          "input_tokens": 423,
+          "output_tokens": 170,
+          "cost_usd": 6.618e-05,
+          "predicted": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.98,
+              "document_date": 0.95,
+              "total_amount": 0.99,
+              "currency": 0.99
+            },
+            "reasoning_flags": [
+              "Document explicitly states 'NOTA DE CREDITO', so 'credit_note' is chosen."
+            ]
+          },
+          "ground_truth": {
+            "document_type": "credit_note",
+            "vendor_name": "Distribuidora Andina EIRL",
+            "document_date": "2025-05-20",
+            "total_amount": 150.0,
+            "currency": "PEN"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "illegible_amount_should_be_null",
+          "description": "Amount unreadable/smudged - must return null, not 0.0 or a guess",
+          "latency_ms": 810.6155999994371,
+          "input_tokens": 395,
+          "output_tokens": 169,
+          "cost_usd": 6.426000000000001e-05,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.99,
+              "document_date": 0.98,
+              "total_amount": 0.1,
+              "currency": 0.1
+            },
+            "reasoning_flags": [
+              "Total amount is illegible due to a stain, so it is set to null.",
+              "Currency is not specified in the document."
+            ]
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Servicios Tecnicos del Norte SA",
+            "document_date": "2025-02-01",
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "contribution_document",
+          "description": "Political/organizational contribution document, distinct type from invoice/receipt",
+          "latency_ms": 903.4652999980608,
+          "input_tokens": 393,
+          "output_tokens": 153,
+          "cost_usd": 6.03e-05,
+          "predicted": {
+            "document_type": "contribution",
+            "vendor_name": "Maria Lopez",
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.9,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.95
+            },
+            "reasoning_flags": [
+              "Document explicitly mentions 'CONTRIBUTION FORM' and 'Donor'"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "contribution",
+            "vendor_name": null,
+            "document_date": "2025-06-30",
+            "total_amount": 25.0,
+            "currency": "USD"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": false,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 4,
+          "fields_total": 5
+        },
+        {
+          "case_id": "eur_invoice_dd_mm_yyyy",
+          "description": "European date format and EUR currency, tests date normalization to YYYY-MM-DD",
+          "latency_ms": 670.8885000043665,
+          "input_tokens": 399,
+          "output_tokens": 143,
+          "cost_usd": 5.826e-05,
+          "predicted": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR",
+            "confidence_summary": {
+              "document_type": 0.95,
+              "vendor_name": 0.95,
+              "document_date": 0.95,
+              "total_amount": 0.95,
+              "currency": 0.95
+            },
+            "reasoning_flags": []
+          },
+          "ground_truth": {
+            "document_type": "invoice",
+            "vendor_name": "Muller Logistik GmbH",
+            "document_date": "2025-11-03",
+            "total_amount": 2340.0,
+            "currency": "EUR"
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        },
+        {
+          "case_id": "unclassifiable_should_be_unknown",
+          "description": "Not a financial document at all - must return 'unknown', not a forced guess",
+          "latency_ms": 995.6465999930515,
+          "input_tokens": 353,
+          "output_tokens": 133,
+          "cost_usd": 5.31e-05,
+          "predicted": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null,
+            "confidence_summary": {
+              "document_type": 0.0,
+              "vendor_name": 0.0,
+              "document_date": 0.0,
+              "total_amount": 0.0,
+              "currency": 0.0
+            },
+            "reasoning_flags": [
+              "No document type or vendor name identified",
+              "No total amount or date information found"
+            ]
+          },
+          "ground_truth": {
+            "document_type": "unknown",
+            "vendor_name": null,
+            "document_date": null,
+            "total_amount": null,
+            "currency": null
+          },
+          "field_matches": {
+            "document_type": true,
+            "vendor_name": true,
+            "document_date": true,
+            "total_amount": true,
+            "currency": true
+          },
+          "fields_correct": 5,
+          "fields_total": 5
+        }
+      ]
+    }
+  },
+  "nlq": {
+    "claude-sonnet-4.5 (current)": {
+      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "cases": [
+        {
+          "case_id": "total_spend",
+          "question": "How much did we spend in total?",
+          "latency_ms": 1771.8786999976146,
+          "input_tokens": 335,
+          "output_tokens": 27,
+          "cost_usd": 0.00141,
+          "generated_sql": "SELECT SUM(total_amount) as total_spend\nFROM gold_invoice_summary",
+          "validated_sql": "SELECT SUM(total_amount) as total_spend FROM gold_invoice_summary LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "top_suppliers",
+          "question": "Who are the top 5 suppliers by total amount?",
+          "latency_ms": 1991.9632000019192,
+          "input_tokens": 339,
+          "output_tokens": 64,
+          "cost_usd": 0.001977,
+          "generated_sql": "SELECT \n    supplier_name,\n    COUNT(*) as invoice_count,\n    SUM(total_amount) as total_amount\nFROM gold_invoice_summary\nGROUP BY supplier_name\nORDER BY total_amount DESC\nLIMIT 5",
+          "validated_sql": "SELECT supplier_name, COUNT(*) as invoice_count, SUM(total_amount) as total_amount FROM gold_invoice_summary GROUP BY supplier_name ORDER BY total_amount DESC LIMIT 5",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "invoices_last_month",
+          "question": "How many invoices were processed last month?",
+          "latency_ms": 2261.0046999980113,
+          "input_tokens": 336,
+          "output_tokens": 75,
+          "cost_usd": 0.002133,
+          "generated_sql": "SELECT COUNT(*) as invoice_count\nFROM gold_invoice_summary\nWHERE processing_date >= date_format(date_add('month', -1, current_date), '%Y-%m-01')\n  AND processing_date < date_format(current_date, '%Y-%m-01')",
+          "validated_sql": null,
+          "validation_passed": false,
+          "validation_error": "Unknown identifier(s): current_date, date_add, date_format",
+          "tables_used": [],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": false
+        },
+        {
+          "case_id": "failed_status_detail",
+          "question": "Show me invoices with status Failed.",
+          "latency_ms": 1942.8430999978445,
+          "input_tokens": 335,
+          "output_tokens": 75,
+          "cost_usd": 0.00213,
+          "generated_sql": "SELECT \n    invoice_id,\n    invoice_date,\n    supplier_name,\n    currency,\n    total_amount,\n    document_type,\n    processing_date\nFROM gold_invoice_summary\nWHERE LOWER(document_type) = 'failed'\nLIMIT 100",
+          "validated_sql": "SELECT invoice_id, invoice_date, supplier_name, currency, total_amount, document_type, processing_date FROM gold_invoice_summary WHERE LOWER(document_type) = 'failed' LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": false
+        },
+        {
+          "case_id": "avg_amount_by_currency",
+          "question": "What is the average invoice amount grouped by currency?",
+          "latency_ms": 1904.5018999968306,
+          "input_tokens": 337,
+          "output_tokens": 59,
+          "cost_usd": 0.0018960000000000001,
+          "generated_sql": "SELECT \n    currency,\n    AVG(total_amount) as average_invoice_amount,\n    COUNT(*) as invoice_count\nFROM gold_invoice_summary\nGROUP BY currency\nORDER BY average_invoice_amount DESC",
+          "validated_sql": "SELECT currency, AVG(total_amount) as average_invoice_amount, COUNT(*) as invoice_count FROM gold_invoice_summary GROUP BY currency ORDER BY average_invoice_amount DESC LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "duplicates_count",
+          "question": "How many documents were flagged as duplicates?",
+          "latency_ms": 1826.9098000018857,
+          "input_tokens": 337,
+          "output_tokens": 28,
+          "cost_usd": 0.0014310000000000002,
+          "generated_sql": "SELECT COUNT(*) as duplicate_count\nFROM gold_documents\nWHERE is_duplicate = true",
+          "validated_sql": "SELECT COUNT(*) as duplicate_count FROM gold_documents WHERE is_duplicate = true LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "supplier_name_filter",
+          "question": "List the 10 most recent invoices from supplier 'Acme Supplies Inc.'",
+          "latency_ms": 1970.6953999993857,
+          "input_tokens": 347,
+          "output_tokens": 83,
+          "cost_usd": 0.002286,
+          "generated_sql": "SELECT \n    invoice_id,\n    invoice_date,\n    supplier_name,\n    currency,\n    total_amount,\n    document_type,\n    processing_date\nFROM gold_invoice_summary\nWHERE supplier_name = 'Acme Supplies Inc.'\nORDER BY invoice_date DESC\nLIMIT 10",
+          "validated_sql": "SELECT invoice_id, invoice_date, supplier_name, currency, total_amount, document_type, processing_date FROM gold_invoice_summary WHERE supplier_name = 'Acme Supplies Inc.' ORDER BY invoice_date DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "quality_rejected_reasons",
+          "question": "What are the most common rejection reasons for rejected documents?",
+          "latency_ms": 2687.28910000209,
+          "input_tokens": 338,
+          "output_tokens": 98,
+          "cost_usd": 0.002484,
+          "generated_sql": "SELECT \n  quality_status,\n  COUNT(*) as rejection_count,\n  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage\nFROM gold_documents\nWHERE quality_status != 'APPROVED'\n  AND quality_status IS NOT NULL\nGROUP BY quality_status\nORDER BY rejection_count DESC\nLIMIT 20",
+          "validated_sql": null,
+          "validation_passed": false,
+          "validation_error": "Unknown identifier(s): over",
+          "tables_used": [],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": false
+        }
+      ]
+    },
+    "nova-micro": {
+      "model_id": "amazon.nova-micro-v1:0",
+      "cases": [
+        {
+          "case_id": "total_spend",
+          "question": "How much did we spend in total?",
+          "latency_ms": 483.5575999968569,
+          "input_tokens": 300,
+          "output_tokens": 31,
+          "cost_usd": 1.484e-05,
+          "generated_sql": "SELECT SUM(total_amount) AS total_spend\nFROM gold_invoice_summary\nLIMIT 1000",
+          "validated_sql": "SELECT SUM(total_amount) AS total_spend FROM gold_invoice_summary LIMIT 1000",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "top_suppliers",
+          "question": "Who are the top 5 suppliers by total amount?",
+          "latency_ms": 447.3114000065834,
+          "input_tokens": 303,
+          "output_tokens": 46,
+          "cost_usd": 1.7044999999999997e-05,
+          "generated_sql": "SELECT supplier_name, SUM(total_amount) AS total_amount\nFROM gold_invoice_summary\nGROUP BY supplier_name\nORDER BY total_amount DESC\nLIMIT 5",
+          "validated_sql": "SELECT supplier_name, SUM(total_amount) AS total_amount FROM gold_invoice_summary GROUP BY supplier_name ORDER BY total_amount DESC LIMIT 5",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "invoices_last_month",
+          "question": "How many invoices were processed last month?",
+          "latency_ms": 595.2905000012834,
+          "input_tokens": 300,
+          "output_tokens": 66,
+          "cost_usd": 1.9739999999999997e-05,
+          "generated_sql": "SELECT COUNT(invoice_id) AS invoice_count\nFROM gold_invoice_summary\nWHERE DATE_FORMAT(invoice_date, '%Y-%m') = DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m')\nLIMIT 100",
+          "validated_sql": null,
+          "validation_passed": false,
+          "validation_error": "Unknown identifier(s): current_date, date_format, interval",
+          "tables_used": [],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": false
+        },
+        {
+          "case_id": "failed_status_detail",
+          "question": "Show me invoices with status Failed.",
+          "latency_ms": 444.7165000019595,
+          "input_tokens": 299,
+          "output_tokens": 60,
+          "cost_usd": 1.8864999999999996e-05,
+          "generated_sql": "SELECT \n    invoice_id,\n    invoice_date,\n    supplier_name,\n    currency,\n    total_amount,\n    processing_date\nFROM \n    gold_invoice_summary\nWHERE \n    quality_status = 'Failed'\nLIMIT 100",
+          "validated_sql": null,
+          "validation_passed": false,
+          "validation_error": "Unknown identifier(s): quality_status",
+          "tables_used": [],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": false
+        },
+        {
+          "case_id": "avg_amount_by_currency",
+          "question": "What is the average invoice amount grouped by currency?",
+          "latency_ms": 529.2090000002645,
+          "input_tokens": 302,
+          "output_tokens": 48,
+          "cost_usd": 1.729e-05,
+          "generated_sql": "SELECT currency, AVG(total_amount) AS average_invoice_amount\nFROM gold_invoice_summary\nGROUP BY currency\nORDER BY average_invoice_amount DESC\nLIMIT 100",
+          "validated_sql": "SELECT currency, AVG(total_amount) AS average_invoice_amount FROM gold_invoice_summary GROUP BY currency ORDER BY average_invoice_amount DESC LIMIT 100",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "duplicates_count",
+          "question": "How many documents were flagged as duplicates?",
+          "latency_ms": 454.1577999989386,
+          "input_tokens": 300,
+          "output_tokens": 39,
+          "cost_usd": 1.596e-05,
+          "generated_sql": "SELECT COUNT(invoice_id) AS duplicate_count\nFROM gold_invoice_summary\nWHERE duplicate_fields IS NOT NULL\nLIMIT 100",
+          "validated_sql": null,
+          "validation_passed": false,
+          "validation_error": "Unknown identifier(s): duplicate_fields",
+          "tables_used": [],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": false
+        },
+        {
+          "case_id": "supplier_name_filter",
+          "question": "List the 10 most recent invoices from supplier 'Acme Supplies Inc.'",
+          "latency_ms": 606.7092000012053,
+          "input_tokens": 308,
+          "output_tokens": 77,
+          "cost_usd": 2.1559999999999997e-05,
+          "generated_sql": "SELECT \n    invoice_id, \n    invoice_date, \n    supplier_name, \n    currency, \n    total_amount, \n    processing_date\nFROM \n    gold_invoice_summary\nWHERE \n    supplier_name = 'Acme Supplies Inc.'\nORDER BY \n    invoice_date DESC\nLIMIT 10",
+          "validated_sql": "SELECT invoice_id, invoice_date, supplier_name, currency, total_amount, processing_date FROM gold_invoice_summary WHERE supplier_name = 'Acme Supplies Inc.' ORDER BY invoice_date DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_invoice_summary"
+          ],
+          "expected_table": "gold_invoice_summary",
+          "table_matches_expectation": true
+        },
+        {
+          "case_id": "quality_rejected_reasons",
+          "question": "What are the most common rejection reasons for rejected documents?",
+          "latency_ms": 447.9009999995469,
+          "input_tokens": 303,
+          "output_tokens": 52,
+          "cost_usd": 1.7885e-05,
+          "generated_sql": "SELECT \n    rejection_reason \nFROM \n    gold_documents \nWHERE \n    quality_status = 'rejected' \nGROUP BY \n    rejection_reason \nORDER BY \n    COUNT(*) DESC \nLIMIT 10",
+          "validated_sql": "SELECT rejection_reason FROM gold_documents WHERE quality_status = 'rejected' GROUP BY rejection_reason ORDER BY COUNT(*) DESC LIMIT 10",
+          "validation_passed": true,
+          "validation_error": null,
+          "tables_used": [
+            "gold_documents"
+          ],
+          "expected_table": "gold_documents",
+          "table_matches_expectation": true
+        }
+      ]
+    }
+  }
+}

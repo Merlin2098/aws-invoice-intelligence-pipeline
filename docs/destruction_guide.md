@@ -32,14 +32,11 @@ If you want to keep any processed invoices or Gold tables, back them up
 first:
 
 ```bash
-aws s3 sync s3://<data-lake-bucket>/ ./backup-data-lake/
+make backup-data-lake
 ```
 
-Get the bucket name with:
-
-```bash
-terraform -chdir=infra/envs/dev output -raw data_lake_bucket_name
-```
+(looks up the bucket name via `terraform output` and syncs it to
+`./backup-data-lake/`.)
 
 ## 2. What `terraform destroy` does NOT touch
 
@@ -77,18 +74,12 @@ currently `rfuculmana@gmail.com`).
 Always preview what will be destroyed before running the real thing:
 
 ```bash
-terraform -chdir=infra/envs/dev plan -destroy -var-file=terraform.tfvars
+make tf-destroy-plan
 ```
 
-Or use the existing helper script, which defaults to a dry run:
-
-```powershell
-tests/terraform/step3_destroy.ps1
-```
-
-This runs `terraform plan -destroy` and writes the full plan to
-`logs/tf_step3_destroy_<timestamp>.log` — **no resources are touched**
-without `-Confirm`.
+Runs `terraform plan -destroy` (via `tests/terraform/step3_destroy.sh`) and
+writes the full plan to `logs/tf_step3_destroy_<timestamp>.log` — **no
+resources are touched** by this target.
 
 Review the plan for anything unexpected, in particular:
 
@@ -102,20 +93,15 @@ Review the plan for anything unexpected, in particular:
 Only after the dry run looks correct and you have **explicit approval**:
 
 ```bash
-terraform -chdir=infra/envs/dev destroy -var-file=terraform.tfvars
+make tf-destroy
 ```
 
-Or, with the helper script (still requires the same approval before running):
-
-```powershell
-tests/terraform/step3_destroy.ps1 -Confirm
-```
-
-This runs `terraform destroy -auto-approve` and logs to
-`logs/tf_step3_destroy_<timestamp>.log`. Note `-auto-approve` skips
-Terraform's own interactive confirmation prompt — this is why the explicit
-approval step in this workflow matters; there is no second safety net from
-Terraform itself.
+Runs `terraform destroy -auto-approve` (via `tests/terraform/step3_destroy.sh
+--confirm`) and logs to `logs/tf_step3_destroy_<timestamp>.log`. Note
+`-auto-approve` skips Terraform's own interactive confirmation prompt — this
+is why the explicit approval step in this workflow matters; there is no
+second safety net from Terraform itself. `make tf-destroy` is not itself the
+approval — get explicit approval first, same as `tf-apply`.
 
 ## 6. If destroy fails on CloudFront OAC / WAF Web ACL ("still in use")
 
@@ -147,65 +133,25 @@ aws_cloudfront_origin_access_control.site
 aws_wafv2_web_acl.portal
 ```
 
-To resolve, manually finish deleting the orphaned distribution, then
-re-run `terraform destroy`:
+To resolve, use `tests/terraform/step10_cleanup_orphaned_distribution.py` to
+finish deleting the orphaned distribution, then re-run `terraform destroy`.
+The script matches the distribution by `Comment` (default
+`invoice-pipeline-dev`), disables it, and polls for propagation (typically
+5-15 minutes) — split from the actual delete so an interrupted run never
+leaves a half-deleted distribution:
 
-1. **Find the orphaned distribution** (it won't be in Terraform state
-   anymore — match it by `Comment` / the WAF and OAC IDs from the error):
+```bash
+# Find + disable + wait for propagation (no delete yet)
+tests/terraform/step10_cleanup_orphaned_distribution.py
 
-   ```bash
-   aws cloudfront list-distributions \
-     --query "DistributionList.Items[].{Id:Id,Status:Status,Enabled:Enabled,WebACLId:WebACLId,Comment:Comment}"
-   ```
+# Once it reports propagation done, delete it
+tests/terraform/step10_cleanup_orphaned_distribution.py --delete
+```
 
-2. **Get its current config and ETag**:
-
-   ```bash
-   aws cloudfront get-distribution-config --id <distribution_id> --output json > dist_config.json
-   ```
-
-   Note the `ETag` field at the top level of `dist_config.json`.
-
-3. **Disable it**: copy the `DistributionConfig` object only, set
-   `"Enabled": false`, and save as a separate file
-   (e.g. `dist_config_disabled.json`) — **as UTF-8 without a BOM**. On
-   Windows, PowerShell's `>` redirection writes UTF-16 with a BOM by
-   default, which `aws cloudfront update-distribution` cannot parse
-   (`Error parsing parameter '--distribution-config': Expected: '=',
-   received: 'ÿ'`). Generate the file with a tool that writes plain UTF-8
-   (e.g. a short Python snippet using `json.dump(..., encoding="utf-8")`),
-   not PowerShell redirection.
-
-   ```bash
-   aws cloudfront update-distribution --id <distribution_id> \
-     --distribution-config file://dist_config_disabled.json \
-     --if-match <ETag from step 2>
-   ```
-
-4. **Wait for propagation** — this is the slow part, typically 5-15
-   minutes:
-
-   ```bash
-   aws cloudfront get-distribution --id <distribution_id> \
-     --query "Distribution.{Status:Status,Enabled:DistributionConfig.Enabled}"
-   ```
-
-   Repeat until you see `"Status": "Deployed"` and `"Enabled": false`.
-
-5. **Delete the distribution** using a fresh ETag (the one from step 2 is
-   now stale):
-
-   ```bash
-   aws cloudfront get-distribution-config --id <distribution_id> --query "ETag" --output text
-   aws cloudfront delete-distribution --id <distribution_id> --if-match <new ETag>
-   ```
-
-6. **Re-run `terraform destroy`** — the OAC and WAF Web ACL should now
-   delete cleanly since nothing references them.
-
-7. Delete the temporary `dist_config.json` / `dist_config_disabled.json`
-   files — they contain deployed infrastructure config and should not be
-   committed.
+Pass `--id <distribution_id>` instead of `--comment` if you already have the
+ID from the error (or from a `Comment` collision). Once the delete step
+succeeds, re-run `terraform destroy` — the OAC and WAF Web ACL should now
+delete cleanly since nothing references them.
 
 ## 7. After destroy — verify and clean up leftovers
 
@@ -213,17 +159,18 @@ Terraform-managed resources should all be gone, but verify the things most
 likely to linger or cost money if orphaned:
 
 ```bash
-# Confirm state is empty
-terraform -chdir=infra/envs/dev state list
+make verify-destroyed
+```
 
-# Confirm the data lake / artifact / site buckets are gone
-aws s3api head-bucket --bucket <data-lake-bucket>   # expect 404
-aws s3api head-bucket --bucket <artifact-bucket>    # expect 404
-aws s3api head-bucket --bucket <site-bucket>        # expect 404
+Confirms `terraform state list` is empty and that the CloudFront
+distribution is gone. Since `terraform output` no longer works once state is
+empty, capture the bucket names *before* destroying (e.g.
+`terraform -chdir=infra/envs/dev output -raw data_lake_bucket_name`, and
+likewise for `artifact_bucket_name` / `site_bucket_name`) and pass them as
+env vars to get `head-bucket` 404 checks on each:
 
-# Confirm the CloudFront distribution is gone
-aws cloudfront list-distributions \
-  --query "DistributionList.Items[?Comment=='invoice-pipeline-dev']"
+```bash
+make verify-destroyed DATA_LAKE_BUCKET=<bucket> ARTIFACT_BUCKET=<bucket> SITE_BUCKET=<bucket>
 ```
 
 Things that are **not** part of `infra/envs/dev` state and will survive a
