@@ -1,0 +1,90 @@
+// High-level architecture overview (one box per component named in the README).
+// The detailed, edge-by-edge diagram is architecture.dot.
+// Render: dot -Tpng -Gdpi=150 docs/resources/architecture_overview.dot -o docs/resources/architecture_diagram.png
+digraph invoice_pipeline_overview {
+  graph [rankdir=TB, bgcolor="white", fontname="Arial", fontsize=13, pad=0.4,
+         nodesep=0.3, ranksep=0.45, newrank=true, compound=true,
+         label="Invoice Intelligence Pipeline: architecture (dev environment, fully managed by Terraform)",
+         labelloc=t, labeljust=l, fontcolor="#232F3E"];
+  node  [shape=box, style="rounded,filled", fontname="Arial", fontsize=11,
+         color="#9AA5B1", fillcolor="#F7F9FB", fontcolor="#16191F", penwidth=1.2, margin="0.15,0.08"];
+  edge  [fontname="Arial", fontsize=9, color="#5F6B7A", fontcolor="#5F6B7A", arrowsize=0.7];
+
+  user [label="User\n(browser)", shape=ellipse, fillcolor="#FFFFFF"];
+
+  subgraph cluster_web {
+    label="Web portal and API"; style="rounded,dashed"; color="#8C4FFF"; fontcolor="#8C4FFF";
+    cloudfront [label="CloudFront + WAF\n(rate limit)", fillcolor="#F3ECFF", color="#8C4FFF"];
+    site       [label="S3\nReact + Vite site", fillcolor="#E8F5E9", color="#3F8624"];
+    apigw      [label="API Gateway\nHTTP API", fillcolor="#F3ECFF", color="#8C4FFF"];
+    l_upload   [label="Upload Lambda\npresigned URL", fillcolor="#FFF4E5", color="#ED7100"];
+    l_chat     [label="Chat Lambda", fillcolor="#FFF4E5", color="#ED7100"];
+  }
+
+  subgraph cluster_ingest {
+    label="Ingestion"; style="rounded,dashed"; color="#E7157B"; fontcolor="#E7157B";
+    raw    [label="S3 raw/", fillcolor="#E8F5E9", color="#3F8624"];
+    sqs    [label="SQS\nbatch 1 · max concurrency 5", fillcolor="#FCE8F3", color="#E7157B"];
+    dlq    [label="DLQ\n(after 3 receives)", fillcolor="#FDECEC", color="#D13212"];
+    l_disp [label="raw-dispatch\nLambda", fillcolor="#FFF4E5", color="#ED7100"];
+  }
+
+  subgraph cluster_sfn {
+    label="Step Functions: one execution per document"; style="rounded,dashed"; color="#E7157B"; fontcolor="#E7157B";
+    validate [label="ValidateInput"];
+    ocr      [label="ExtractOCR", fillcolor="#FFF4E5", color="#ED7100"];
+    llm      [label="EnrichWithLLM", fillcolor="#FFF4E5", color="#ED7100"];
+    metrics  [label="PublishRunMetrics"];
+    gold_s   [label="ConsolidateGold"];
+  }
+
+  subgraph cluster_ai {
+    label="AI services"; style="rounded,dashed"; color="#01A88D"; fontcolor="#01A88D";
+    textract [label="Textract\nAnalyzeExpense", fillcolor="#E6F7F4", color="#01A88D"];
+    bed_p    [label="Bedrock\nClaude Haiku 4.5\n(normalization)", fillcolor="#E6F7F4", color="#01A88D"];
+    bed_c    [label="Bedrock\nAmazon Nova Micro\n(question → SQL → answer)", fillcolor="#E6F7F4", color="#01A88D"];
+  }
+
+  subgraph cluster_lake {
+    label="S3 data lake"; style="rounded,dashed"; color="#3F8624"; fontcolor="#3F8624";
+    bronze [label="bronze/\nraw Textract JSON", fillcolor="#F5EBDD", color="#8C6D46"];
+    silver [label="silver/valid · silver/rejected\nerrors/", fillcolor="#EEF1F4", color="#7D8998"];
+    gold   [label="gold/\nParquet", fillcolor="#FFF8DC", color="#B8860B"];
+  }
+
+  subgraph cluster_analytics {
+    label="Analytics"; style="rounded,dashed"; color="#8C4FFF"; fontcolor="#8C4FFF";
+    validator [label="SQL validator\nSELECT only · allow-list · LIMIT", fillcolor="#FFFFFF", color="#D13212", penwidth=1.6];
+    glue      [label="Glue Data Catalog"];
+    athena    [label="Athena"];
+  }
+
+  cw [label="CloudWatch\nlogs · metrics · alarms", fillcolor="#FCE8F3", color="#E7157B"];
+
+  user -> cloudfront;
+  cloudfront -> site [label="SPA"];
+  cloudfront -> apigw [label="/uploads /invoices /chat"];
+  apigw -> l_upload;
+  apigw -> l_chat;
+  l_upload -> raw [label="with that URL, the browser\nPUTs the PDF straight to S3", color="#3F8624", fontcolor="#3F8624", style=dashed];
+
+  raw -> sqs [label="S3 event"];
+  sqs -> dlq [label="fails 3 times", color="#D13212", fontcolor="#D13212", style=dashed];
+  sqs -> l_disp;
+  l_disp -> validate [lhead=cluster_sfn, label="StartExecution"];
+
+  validate -> ocr -> llm -> metrics -> gold_s;
+  ocr -> metrics [label="failed or already processed:\nBedrock is not called", style=dashed, color="#D13212", fontcolor="#D13212"];
+
+  ocr -> textract [dir=both];
+  ocr -> bronze;
+  llm -> bed_p [dir=both];
+  llm -> silver;
+  gold_s -> gold;
+  metrics -> cw [style=dotted];
+
+  gold -> glue -> athena;
+  l_chat -> bed_c [dir=both];
+  l_chat -> validator [label="generated SQL"];
+  validator -> athena [label="validated query"];
+}

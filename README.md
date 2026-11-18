@@ -8,10 +8,10 @@ enriches it with Textract and Bedrock, consolidates it into a Gold analytics
 layer, and the user can immediately query their invoices with natural language
 and receive business-friendly answers.
 
-The project demonstrates a full production-ready stack — Data Engineering,
-OCR, Lakehouse Architecture, GenAI, Conversational Analytics, and
-Infrastructure as Code (Terraform) — end to end without hiding any runtime
-behavior behind a framework.
+The project is an end-to-end MVP that covers Data Engineering, OCR, Lakehouse
+Architecture, GenAI, Conversational Analytics, and Infrastructure as Code
+(Terraform), without hiding any runtime behavior behind a framework. It runs in
+a single `dev` environment; see [Limitations](#limitations).
 
 ## Business Problem
 
@@ -76,22 +76,64 @@ S3 raw/ → SQS → Lambda raw-dispatch → Step Functions:
 
 ## Architecture Diagram
 
-![Invoice Pipeline Architecture](docs/resources/architecture_diagram.png)
+![Invoice Pipeline Architecture: the web portal uploads invoices to S3; SQS and Step Functions orchestrate Textract and Bedrock; results land in a layered S3 data lake queried with Athena through a validated chat endpoint](docs/resources/architecture_diagram.png)
 
-See [`docs/resources/diagram.md`](docs/resources/diagram.md) for Mermaid
-diagrams covering the full pipeline flow, AWS service topology, and layer detail.
+The overview above is generated from
+[`docs/resources/architecture_overview.dot`](docs/resources/architecture_overview.dot).
+For edge-by-edge detail see [`architecture.dot`](docs/resources/architecture.dot),
+and for Mermaid diagrams of the pipeline flow, AWS service topology and layers
+see [`docs/resources/diagram.md`](docs/resources/diagram.md).
+
+## Design Decisions
+
+Each decision below was a trade-off made under the constraints of a
+single-maintainer, low-budget, fully-serverless project.
+
+| Decision | Why | What it costs |
+|---|---|---|
+| Textract does OCR; the LLM only normalizes text ([SPEC-006](specs/SPEC-006-ocr-llm-separation.md)) | Separates deterministic extraction from probabilistic interpretation; the raw Textract JSON in `bronze/` shows whether a bad field came from reading or from interpretation | Two services to integrate and pay for |
+| OCR and LLM run as separate Lambda steps in Step Functions | A Bedrock failure never re-pays for OCR; each step has its own least-privilege IAM role (the OCR role cannot call Bedrock and vice versa) | More Lambdas, roles and Terraform modules |
+| SQS buffer with DLQ and an idempotency guard in front of Step Functions | Bounded concurrency for Textract/Bedrock; failed messages are kept, not lost | One more hop; the idempotency `HeadObject` check needs `s3:ListBucket` on the prefix, otherwise S3 returns `403` instead of `404` for missing keys ([AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)) |
+| Models chosen by measurement ([report](docs/model_comparison_report.md)) | Neither call uses vision or tools, so cheaper models were viable if accuracy held on the real prompt and validator | A small, hand-labelled evaluation set to maintain |
+| LLM-generated SQL always passes an allow-list validator | Free-text questions become SQL against the lake; the validator, an IAM role that can only read Gold (plus write Athena results) and an Athena per-query scan cutoff (100 MB) bound the blast radius | Rigid: new Gold columns must be registered, and some legitimate questions are refused |
+
+## Model Selection
+
+Both Bedrock call sites originally used Claude Sonnet 4.5. A small evaluation
+harness ([`tests/model_comparison/`](tests/model_comparison/)) ran the
+production prompts against hand-labelled cases (September 2026, on-demand list
+prices, single run per case):
+
+| Call site | Model | Accuracy | Avg cost / call | Avg latency |
+|---|---|---|---|---|
+| Invoice normalization (8 invoices × 5 fields) | Claude Sonnet 4.5 | 39/40 fields | $0.004905 | 4,283 ms |
+| | **Claude Haiku 4.5** (deployed) | **40/40 fields** | $0.001630 | 1,922 ms |
+| | Amazon Nova Lite | 38/40 fields | $0.000061 | 812 ms |
+| Question → SQL (8 questions, validator-passing) | Claude Sonnet 4.5 | 8/8 | $0.005061 | 2,161 ms |
+| | **Amazon Nova Micro** (deployed) | **8/8** | $0.000052 | 502 ms |
+
+With eight cases per task this shows the cheaper models are not clearly worse
+for these prompts; it does not show they are equivalent on production-scale
+variety. Methodology, per-case misses and the prompt fixes that got NL→SQL to
+8/8 are in the [full report](docs/model_comparison_report.md).
+
+## Cost
+
+- **Guardrail:** an AWS Budget of USD 20/month is provisioned by Terraform
+  ([`budget.tf`](infra/envs/dev/budget.tf)).
+- **Measured LLM cost:** about USD 1.63 per 1,000 invoices for normalization
+  and USD 0.52 per 10,000 chat questions (see Model Selection).
+- **Not measured:** total monthly cost from Cost Explorer. Textract
+  `AnalyzeExpense` is billed per page; check current
+  [Textract pricing](https://aws.amazon.com/textract/pricing/) before running
+  large batches.
 
 ## Demo
 
-The following recordings show the data product running end-to-end on AWS.
+The following recordings show the data product running end-to-end on AWS:
 
-**Demo 1 — Invoice upload and pipeline processing**
-
-<video src="docs/video/invoice pipeline_demo.mp4" controls width="100%"></video>
-
-**Demo 2 — Conversational analytics (natural-language query via chat)**
-
-<video src="docs/video/invoice pipeline_demo2.mp4" controls width="100%"></video>
+- [Demo 1: invoice upload and pipeline processing (MP4)](docs/video/invoice%20pipeline_demo.mp4)
+- [Demo 2: conversational analytics, natural-language query via chat (MP4)](docs/video/invoice%20pipeline_demo2.mp4)
 
 ## Repository Structure
 
@@ -138,7 +180,7 @@ Example usage after deployment:
 ```powershell
 $lake = terraform -chdir=infra/envs/dev output -raw data_lake_bucket_name
 $env:ATHENA_OUTPUT_LOCATION = "s3://$lake/athena-results/"
-$env:BEDROCK_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+$env:BEDROCK_MODEL_ID = "amazon.nova-micro-v1:0"
 
 python -m src.analytics.cli repair-partitions
 python -m src.analytics.cli sql "SELECT vendor_name, COUNT(document_id) AS docs FROM gold_documents GROUP BY vendor_name"
@@ -206,6 +248,16 @@ and a reviewed plan.
 Remote state is prepared through `backend.tf.example`; copy it to `backend.tf`
 only when the backend bucket and state policy are intentionally configured.
 
+The full step-by-step deployment is in
+[`docs/deployment_guide.md`](docs/deployment_guide.md).
+
+### Teardown
+
+The environment is designed to be destroyed completely. Read
+[`docs/destruction_guide.md`](docs/destruction_guide.md) first: the data lake,
+artifact and site buckets use `force_destroy = true`, so `terraform destroy`
+deletes all pipeline data without a further prompt.
+
 ## Operational Validation
 
 After deployment, trigger the pipeline by uploading a supported document to the
@@ -237,14 +289,21 @@ conversational analytics — is deployed and validated on AWS:
   Bedrock-summarized answer.
 - Bronze, Silver, Gold, and error routing with `run_id` traceability.
 - CloudWatch logs, custom metrics, and a $20/month AWS Budget guardrail.
+- Bedrock models: Claude Haiku 4.5 for invoice normalization, Amazon Nova Micro
+  for NL→SQL and answers.
+
+## Limitations
+
+- Single `dev` environment; no staging or production promotion yet.
+- Model evaluation uses 8 hand-labelled cases per task and one run per case.
+- The largest load test so far was a 40-document smoke run.
+- Rejected or failed documents cannot yet be reprocessed selectively.
 
 ## Roadmap
 
 - Harden CloudWatch alarms, Lambda retries, and DLQ alerting.
 - Selective reprocessing for failed or rejected documents.
-- `gold_invoice_summary` semantic view (SPEC-012) for richer NL→SQL grounding.
-- Remote Terraform backend migration with S3 state bucket and native locking
-  (SPEC-014 / SPEC-007).
+- Widen the model evaluation set beyond 8 cases per task.
 - Environment promotion beyond dev (staging, production stacks).
 - Optional: QuickSight or BI tool integration in direct-query mode over Athena.
 
