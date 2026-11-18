@@ -292,6 +292,16 @@ conversational analytics — is deployed and validated on AWS:
 - Bedrock models: Claude Haiku 4.5 for invoice normalization, Amazon Nova Micro
   for NL→SQL and answers.
 
+## Sample Data
+
+The sample invoices used for development and testing are scanned TIF images
+from the *invoice* class of the
+[RVL-CDIP dataset](https://adamharley.com/rvl-cdip/) (A. W. Harley, A. Ufkes,
+K. G. Derpanis, *Evaluation of Deep Convolutional Nets for Document Image
+Classification and Retrieval*, ICDAR 2015), downloaded from a Kaggle mirror.
+They are 1980s business documents from the public Legacy Tobacco Documents
+Library. The images are not redistributed here: `data/` is git-ignored.
+
 ## Limitations
 
 - Single `dev` environment; no staging or production promotion yet.
