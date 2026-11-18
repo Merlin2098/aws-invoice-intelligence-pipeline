@@ -76,10 +76,21 @@ S3 raw/ → SQS → Lambda raw-dispatch → Step Functions:
 
 ## Architecture Diagram
 
-![Invoice Pipeline Architecture: the web portal uploads invoices to S3; SQS and Step Functions orchestrate Textract and Bedrock; results land in a layered S3 data lake queried with Athena through a validated chat endpoint](docs/resources/architecture_diagram.png)
+![Invoice Pipeline Architecture](docs/resources/architecture_diagram.png)
 
-The overview above is generated from
+### Technical view
+
+Component-level diagram of the deployed stack, with the current Bedrock models,
+SQS/DLQ settings and the SQL validator. Generated from
 [`docs/resources/architecture_overview.dot`](docs/resources/architecture_overview.dot).
+
+<details>
+<summary>Show technical diagram</summary>
+
+![Technical architecture: the web portal uploads invoices to S3; SQS and Step Functions orchestrate Textract and Bedrock; results land in a layered S3 data lake queried with Athena through a validated chat endpoint](docs/resources/architecture_overview.png)
+
+</details>
+
 For edge-by-edge detail see [`architecture.dot`](docs/resources/architecture.dot),
 and for Mermaid diagrams of the pipeline flow, AWS service topology and layers
 see [`docs/resources/diagram.md`](docs/resources/diagram.md).

@@ -1,6 +1,6 @@
 // High-level architecture overview (one box per component named in the README).
 // The detailed, edge-by-edge diagram is architecture.dot.
-// Render: dot -Tpng -Gdpi=150 docs/resources/architecture_overview.dot -o docs/resources/architecture_diagram.png
+// Render: dot -Tpng -Gdpi=150 docs/resources/architecture_overview.dot -o docs/resources/architecture_overview.png
 digraph invoice_pipeline_overview {
   graph [rankdir=TB, bgcolor="white", fontname="Arial", fontsize=13, pad=0.4,
          nodesep=0.3, ranksep=0.45, newrank=true, compound=true,
